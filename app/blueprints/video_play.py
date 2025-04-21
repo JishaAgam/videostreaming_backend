@@ -1,18 +1,61 @@
 from flask import Blueprint, Flask,jsonify,Response, render_template, request, flash, redirect, url_for, session, current_app
 from werkzeug.utils import secure_filename
 import os
+from app.models import *
 
 video_blueprint = Blueprint('video', __name__)
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'videos/'
 
+
+# @video_blueprint.route('/upload', methods=['POST'])
+# def phone_verification():
+#     try:
+#         video = request.files['video']  
+#         filename = secure_filename(video.filename)
+#         video.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+#         return {'message': 'Video uploaded successfully', 'url': f'/videos/{filename}'}
+#     except Exception as e:  
+#         current_app.logger.error(f"Error: {e}")
+#         return jsonify({"status":500,"message": str(e)})
+
 @video_blueprint.route('/upload', methods=['POST'])
-def phone_verification():
+def video_upload():
     try:
-        video = request.files['video']  
-        filename = secure_filename(video.filename)
-        video.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return {'message': 'Video uploaded successfully', 'url': f'/videos/{filename}'}
+        data = request.form.to_dict()
+        video = request.files.get('video')
+        video_name = secure_filename(video.filename)
+        thumbnail_img = request.files.get('thumbnail_img')
+        thumbnail_name = secure_filename(thumbnail_img.filename)
+        video.save(os.path.join(app.config['UPLOAD_FOLDER'], video_name))
+        thumbnail_img.save(os.path.join(app.config['UPLOAD_FOLDER'], thumbnail_name))
+        video_stream = vidoe_space(
+            video_name=video_name,
+            thumbnail_img=thumbnail_name,
+            vidoe_title=data['vidoe_title']
+        )
+        db.session.add(video_stream)
+        db.session.commit()
+        return {
+            'message': 'Video uploaded successfully',
+            'video_url': f'/videos/{video_name}',
+            'thumbnail_url': f'/thumbnails/{thumbnail_name}'
+        }
+    except Exception as e:  
+        current_app.logger.error(f"Error: {e}")
+        return jsonify({"status":500,"message": str(e)})
+    
+@video_blueprint.route('/data', methods=['GET'])
+def video_data():
+    try:
+        video_data = db.session.query(
+            vidoe_space.id,
+            vidoe_space.video_name,
+            vidoe_space.thumbnail_img,
+            vidoe_space.vidoe_title
+        )
+        video_detail_data = [row._asdict() for row in video_data.all()]
+        return jsonify({"status":200,"message": "Video Data","data":video_detail_data})
     except Exception as e:  
         current_app.logger.error(f"Error: {e}")
         return jsonify({"status":500,"message": str(e)})

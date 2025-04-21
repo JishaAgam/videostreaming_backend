@@ -16,7 +16,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 mail = Mail()
 jwt = JWTManager() 
-redis = FlaskRedis()
+# redis = FlaskRedis()
 load_dotenv()
 csrf = CSRFProtect()
 
@@ -35,16 +35,15 @@ def create_app():
     jwt.init_app(app) 
     # csrf.init_app(app)
     # rate_limit_middleware(app)
-    app.config['REDIS_URL'] = os.getenv('REDIS_URL')
+    # app.config['REDIS_URL'] = os.getenv('REDIS_URL')
 
     # app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
     # app.config['SESSION_COOKIE_HTTPONLY'] = True  # Accessible only via HTTP(S)
 
-    redis.init_app(app,decode_responses=True)
+    # redis.init_app(app,decode_responses=True)
 
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False #timedelta(minutes=180) 
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = False #timedelta(days=30)   
-
     # App Configuration for SQLAlchemy
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
