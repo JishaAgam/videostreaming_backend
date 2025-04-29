@@ -70,3 +70,36 @@ def stream_video(filename):
                 chunk = f.read(1024*1024)
 
     return Response(generate(), mimetype="video/mp4")
+
+@video_blueprint.route('/position', methods=['POST'])
+def save_position():
+    try:
+        data = request.get_json()
+        video = vidoe_space.query.filter_by(id=data['video_id']).first()
+        if not video:
+            return jsonify({"status": 404, "message": "video not found"}), 404 
+        video_position = continue_play(**data)
+        db.session.add(video_position)
+        db.session.commit()
+        return jsonify({"status": 200, "message": "Video continue play created successfully"})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error: {e}",exc_info=True)
+        return jsonify({"status": 500, "message": "Something went wrong"}), 500
+    
+@video_blueprint.route('/position_data', methods=['GET'])
+def position_data():
+    try:
+        save_position_data = db.session.query(
+            continue_play.id,
+            continue_play.position,
+            continue_play.video_id,
+            vidoe_space.video_name,
+            vidoe_space.vidoe_title,
+            vidoe_space.thumbnail_img
+        ).join(vidoe_space,continue_play.video_id == vidoe_space.id).all()
+        video_data = [row._asdict() for row in save_position_data]
+        return jsonify({"status":200,"message": "property Data","data":video_data})
+    except Exception as e:
+        current_app.logger.error(f"Error: {e}",exc_info=True)
+        return jsonify({"status": 500, "message": "Something went wrong"}), 500
