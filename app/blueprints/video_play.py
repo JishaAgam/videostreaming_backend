@@ -3,7 +3,7 @@ from werkzeug.utils import secure_filename
 import os
 from app.models import *
 import secrets
-import dns.resolver
+# import dns.resolver
 import subprocess
 
 
@@ -89,29 +89,28 @@ def stream_video(filename):
 
     return Response(generate(), mimetype="video/mp4")
 
-@video_blueprint.route('/position', methods=['POST'])
-def save_position():
-    try:
-        tenant = getattr(request, 'tenant', 'main')
-        print(tenant,"???????????????????")
-        data = request.get_json()
-        video = vidoe_space.query.filter_by(id=data['video_id']).first()
-        if not video:
-            return jsonify({"status": 404, "message": "video not found"}), 404 
-        video_position = continue_play(**data)
-        db.session.add(video_position)
-        db.session.commit()
-        return jsonify({"status": 200, "message": "Video continue play created successfully"})
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error: {e}",exc_info=True)
-        return jsonify({"status": 500, "message": "Something went wrong"}), 500
+# @video_blueprint.route('/position', methods=['POST'])
+# def save_position():
+#     try:
+#         tenant = getattr(request, 'tenant', 'main')
+#         data = request.get_json()
+#         video = vidoe_space.query.filter_by(id=data['video_id']).first()
+#         if not video:
+#             return jsonify({"status": 404, "message": "video not found"}), 404 
+#         video_position = continue_play(**data)
+#         db.session.add(video_position)
+#         db.session.commit()
+#         return jsonify({"status": 200, "message": "Video continue play created successfully"})
+#     except Exception as e:
+#         db.session.rollback()
+#         current_app.logger.error(f"Error: {e}",exc_info=True)
+#         return jsonify({"status": 500, "message": "Something went wrong"}), 500
     
 @video_blueprint.route('/position_data', methods=['GET'])
 def position_data():
     try:
-        tenant = getattr(request, 'tenant', 'main')
-        print(tenant,"???????????????????")
+        # tenant = getattr(request, 'tenant', 'main')
+        # print(tenant,"???????????????????")
         save_position_data = db.session.query(
             continue_play.id,
             continue_play.position,
