@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask,request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_mail import Mail, Message
@@ -41,13 +41,21 @@ def create_app():
     # app.config['SESSION_COOKIE_HTTPONLY'] = True  # Accessible only via HTTP(S)
 
     # redis.init_app(app,decode_responses=True)
-
+    # app.config['SERVER_NAME'] = 'localhost:5000'
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False #timedelta(minutes=180) 
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = False #timedelta(days=30)   
     # App Configuration for SQLAlchemy
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+    # @app.before_request
+    # def detect_subdomain():
+    #     host = request.host.split(':')[0]
+    #     print("🧪 Host received:", host)
+        
+    #     subdomain = host.split('.')[0] if '.' in host else 'main'
+        
+    #     print("🔥 Subdomain detected:", subdomain)
+    #     request.tenant = subdomain
     # Initialize database and migrations
     db.init_app(app)
     migrate.init_app(app, db)
