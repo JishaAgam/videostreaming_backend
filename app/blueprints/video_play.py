@@ -162,7 +162,7 @@ def position_data():
 
 #     return jsonify({"message": f"{domain} added with SSL"}), 200
 
-UPLOAD_BASE = '/etc/ssl/custom_domains'
+UPLOAD_BASE = '/etc/nginx/ssl/custom_domains'
 NGINX_CONFIG_BASE = '/etc/nginx/sites-available'
 
 @video_blueprint.route('/upload-ssl', methods=['POST'])
