@@ -162,7 +162,7 @@ def position_data():
 #     return jsonify({"message": f"{domain} added with SSL"}), 200
 
 UPLOAD_BASE = '/etc/nginx/ssl/custom_domains'
-NGINX_CONFIG_BASE = '/etc/nginx/sites-available'
+NGINX_CONFIG_BASE = '/etc/nginx/sites-available/ecpil.com.conf'
 
 @video_blueprint.route('/upload-ssl', methods=['POST'])
 def upload_ssl():
@@ -199,13 +199,12 @@ server {{
 }}
 """
 
-    nginx_config_path = os.path.join(NGINX_CONFIG_BASE, f'{domain}.conf')
-    with open(nginx_config_path, 'w') as f:
-        f.write(nginx_config)
+    with open(NGINX_CONFIG_BASE, 'a') as f:
+        f.write('\n' + nginx_config + '\n')
 
-    # Enable site
-    enabled_path = f"/etc/nginx/sites-enabled/{domain}.conf"
-    subprocess.run(["ln", "-sf", nginx_config_path, enabled_path])
+    # # Enable site
+    # enabled_path = f"/etc/nginx/sites-enabled/{domain}.conf"
+    # subprocess.run(["ln", "-sf", nginx_config_path, enabled_path])
 
     # Reload Nginx
     result = subprocess.run(["nginx", "-t"], capture_output=True)
