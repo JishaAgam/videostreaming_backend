@@ -161,65 +161,120 @@ def position_data():
 
 #     return jsonify({"message": f"{domain} added with SSL"}), 200
 
-UPLOAD_BASE = '/etc/nginx/ssl/custom_domains'
-NGINX_CONFIG_BASE = '/etc/nginx/sites-available/ecpil.com.conf'
+# UPLOAD_BASE = '/etc/nginx/ssl/custom_domains'
+# NGINX_CONFIG_BASE = '/etc/nginx/sites-available/ecpil.com.conf'
+
+# @video_blueprint.route('/upload-ssl', methods=['POST'])
+# def upload_ssl():
+#     try:
+#         domain = request.form.get('domain')
+#         cert = request.files.get('cert')
+#         key = request.files.get('key')
+
+#         if not domain or not cert or not key:
+#             return {'error': 'domain, cert, and key are required'}, 400
+
+#         # Create domain-specific folder
+#         domain_folder = os.path.join(UPLOAD_BASE, domain)
+#         os.makedirs(domain_folder, exist_ok=True)
+
+#         cert_path = os.path.join(domain_folder, 'cert.crt')
+#         key_path = os.path.join(domain_folder, 'key.key')
+#         cert.save(cert_path)
+#         key.save(key_path)
+
+#         # Create Nginx config
+#         nginx_config = f"""
+#     server {{
+#         listen 443 ssl;
+#         server_name {domain};
+
+#         ssl_certificate     {cert_path};
+#         ssl_certificate_key {key_path};
+
+#         root /var/www/react-app/build;
+#         index index.html;
+#         location / {{
+#         try_files $uri /index.html;
+#         }}
+#     }}
+#     """
+
+#         with open(NGINX_CONFIG_BASE, 'a') as f:
+#             f.write('\n' + nginx_config + '\n')
+
+#         # # Enable site
+#         # enabled_path = f"/etc/nginx/sites-enabled/{domain}.conf"
+#         # subprocess.run(["ln", "-sf", nginx_config_path, enabled_path])
+
+#         # Reload Nginx
+#         result = subprocess.run(["nginx", "-t"], capture_output=True)
+#         if result.returncode != 0:
+#             return {'error': 'Nginx config test failed', 'output': result.stderr.decode()}, 500
+
+#         subprocess.run(["systemctl", "reload", "nginx"])
+     
+
+#         # return {'message': f'SSL configured for {domain}'}, 200
+#         return jsonify({"status":200,"message": f'SSL configured for {domain}'})
+#     except Exception as e:
+#         current_app.logger.error(f"Error: {e}",exc_info=True)
+#         return jsonify({"status": 500, "message": "Something went wrong"}), 500
+
+
+ 
+
 
 @video_blueprint.route('/upload-ssl', methods=['POST'])
 def upload_ssl():
+    domain = request.form.get('domain')
+    cert = request.files.get('cert')
+    key = request.files.get('key')
+
+    if not all([domain, cert, key]):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    safe_domain = domain.replace('.', '_')  # optional safety
+    ssl_dir = f"/etc/ssl/{domain}"
+    conf_dir = "/etc/nginx/stream-conf.d"
+    cert_path = os.path.join(ssl_dir, "fullchain.pem")
+    key_path = os.path.join(ssl_dir, "privkey.pem")
+    socket_path = f"/var/run/sockets/{domain}.sock"
+    conf_path = os.path.join(conf_dir, f"{domain}.conf")
+
     try:
-        domain = request.form.get('domain')
-        cert = request.files.get('cert')
-        key = request.files.get('key')
-
-        if not domain or not cert or not key:
-            return {'error': 'domain, cert, and key are required'}, 400
-
-        # Create domain-specific folder
-        domain_folder = os.path.join(UPLOAD_BASE, domain)
-        os.makedirs(domain_folder, exist_ok=True)
-
-        cert_path = os.path.join(domain_folder, 'cert.crt')
-        key_path = os.path.join(domain_folder, 'key.key')
+        # 1. Create SSL folder and save cert/key
+        os.makedirs(ssl_dir, exist_ok=True)
         cert.save(cert_path)
         key.save(key_path)
+        os.chmod(cert_path, 0o600)
+        os.chmod(key_path, 0o600)
 
-        # Create Nginx config
-        nginx_config = f"""
-    server {{
-        listen 443 ssl;
-        server_name {domain};
+        # 2. Create NGINX config
+        nginx_conf = f"""
+            server {{
+                listen 443 ssl;
 
-        ssl_certificate     {cert_path};
-        ssl_certificate_key {key_path};
+                ssl_certificate {cert_path};
+                ssl_certificate_key {key_path};
 
-        root /var/www/react-app/build;
-        index index.html;
-        location / {{
-        try_files $uri /index.html;
-        }}
-    }}
-    """
+                proxy_pass http://unix:{socket_path};
+            }}
+            """
 
-        with open(NGINX_CONFIG_BASE, 'a') as f:
-            f.write('\n' + nginx_config + '\n')
+        os.makedirs(conf_dir, exist_ok=True)
+        with open(conf_path, "w") as f:
+            f.write(nginx_conf.strip())
 
-        # # Enable site
-        # enabled_path = f"/etc/nginx/sites-enabled/{domain}.conf"
-        # subprocess.run(["ln", "-sf", nginx_config_path, enabled_path])
+        # 3. Optional: Reload NGINX
+        # reload_status = os.system("nginx -t && systemctl reload nginx")
 
-        # Reload Nginx
-        result = subprocess.run(["nginx", "-t"], capture_output=True)
-        if result.returncode != 0:
-            return {'error': 'Nginx config test failed', 'output': result.stderr.decode()}, 500
+        # if reload_status != 0:
+        #     return jsonify({"error": "NGINX config failed test or reload"}), 500
 
-        subprocess.run(["systemctl", "reload", "nginx"])
-     
+        return jsonify({"message": f"SSL and config added for {domain}"}), 200
 
-        # return {'message': f'SSL configured for {domain}'}, 200
-        return jsonify({"status":200,"message": f'SSL configured for {domain}'})
+    except PermissionError:
+        return jsonify({"error": "Permission denied writing to system folders"}), 500
     except Exception as e:
-        current_app.logger.error(f"Error: {e}",exc_info=True)
-        return jsonify({"status": 500, "message": "Something went wrong"}), 500
-
-
-
+        return jsonify({"error": str(e)}), 500
