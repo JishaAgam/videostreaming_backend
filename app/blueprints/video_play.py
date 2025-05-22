@@ -306,8 +306,8 @@ def upload_ssl():
         cert = request.files.get('cert')
         key = request.files.get('key')
 
-        if not domain or not cert or not key:
-            return jsonify({"error": "Missing domain, cert, or key"}), 400
+        # if not domain or not cert or not key:
+        #     return jsonify({"error": "Missing domain, cert, or key"}), 400
 
         domain_dir = os.path.join(UPLOAD_BASE, domain)
         os.makedirs(domain_dir, exist_ok=True)
