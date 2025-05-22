@@ -225,56 +225,110 @@ def position_data():
  
 
 
+# @video_blueprint.route('/upload-ssl', methods=['POST'])
+# def upload_ssl():
+#     domain = request.form.get('domain')
+#     cert = request.files.get('cert')
+#     key = request.files.get('key')
+
+#     if not all([domain, cert, key]):
+#         return jsonify({"error": "Missing required fields"}), 400
+
+#     safe_domain = domain.replace('.', '_')  # optional safety
+#     ssl_dir = f"/etc/ssl/{domain}"
+#     conf_dir = "/etc/nginx/stream-conf.d"
+#     cert_path = os.path.join(ssl_dir, "fullchain.pem")
+#     key_path = os.path.join(ssl_dir, "privkey.pem")
+#     socket_path = f"/var/run/sockets/{domain}.sock"
+#     conf_path = os.path.join(conf_dir, f"{domain}.conf")
+
+#     try:
+#         # 1. Create SSL folder and save cert/key
+#         os.makedirs(ssl_dir, exist_ok=True)
+#         cert.save(cert_path)
+#         key.save(key_path)
+#         os.chmod(cert_path, 0o600)
+#         os.chmod(key_path, 0o600)
+
+#         # 2. Create NGINX config
+#         nginx_conf = f"""
+#             server {{
+#                 listen 443 ssl;
+
+#                 ssl_certificate {cert_path};
+#                 ssl_certificate_key {key_path};
+
+#                 proxy_pass http://unix:{socket_path};
+#             }}
+#             """
+
+#         os.makedirs(conf_dir, exist_ok=True)
+#         with open(conf_path, "w") as f:
+#             f.write(nginx_conf.strip())
+
+#         # 3. Optional: Reload NGINX
+#         # reload_status = os.system("nginx -t && systemctl reload nginx")
+
+#         # if reload_status != 0:
+#         #     return jsonify({"error": "NGINX config failed test or reload"}), 500
+
+#         return jsonify({"message": f"SSL and config added for {domain}"}), 200
+
+#     except PermissionError:
+#         return jsonify({"error": "Permission denied writing to system folders"}), 500
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+from app.sockets import start_socket_for_domain
+
+UPLOAD_BASE = "/etc/ssl"
+
+# You may store a base port value to increment from
+NEXT_PORT_FILE = "/etc/ssl/next_port.txt"
+
+def get_next_port():
+    if not os.path.exists(NEXT_PORT_FILE):
+        with open(NEXT_PORT_FILE, 'w') as f:
+            f.write("3002")
+
+    with open(NEXT_PORT_FILE, 'r') as f:
+        port = int(f.read().strip())
+
+    with open(NEXT_PORT_FILE, 'w') as f:
+        f.write(str(port + 1))
+    
+    return port
+
 @video_blueprint.route('/upload-ssl', methods=['POST'])
 def upload_ssl():
-    domain = request.form.get('domain')
-    cert = request.files.get('cert')
-    key = request.files.get('key')
-
-    if not all([domain, cert, key]):
-        return jsonify({"error": "Missing required fields"}), 400
-
-    safe_domain = domain.replace('.', '_')  # optional safety
-    ssl_dir = f"/etc/ssl/{domain}"
-    conf_dir = "/etc/nginx/stream-conf.d"
-    cert_path = os.path.join(ssl_dir, "fullchain.pem")
-    key_path = os.path.join(ssl_dir, "privkey.pem")
-    socket_path = f"/var/run/sockets/{domain}.sock"
-    conf_path = os.path.join(conf_dir, f"{domain}.conf")
-
     try:
-        # 1. Create SSL folder and save cert/key
-        os.makedirs(ssl_dir, exist_ok=True)
+        domain = request.form.get('domain')
+        cert = request.files.get('cert')
+        key = request.files.get('key')
+
+        if not domain or not cert or not key:
+            return jsonify({"error": "Missing domain, cert, or key"}), 400
+
+        domain_dir = os.path.join(UPLOAD_BASE, domain)
+        os.makedirs(domain_dir, exist_ok=True)
+
+        cert_path = os.path.join(domain_dir, "fullchain.pem")
+        key_path = os.path.join(domain_dir, "privkey.pem")
+
         cert.save(cert_path)
         key.save(key_path)
-        os.chmod(cert_path, 0o600)
-        os.chmod(key_path, 0o600)
 
-        # 2. Create NGINX config
-        nginx_conf = f"""
-            server {{
-                listen 443 ssl;
+        # Get next available port for this domain
+        port = get_next_port()
 
-                ssl_certificate {cert_path};
-                ssl_certificate_key {key_path};
+        # Start the socket server on that port
+        start_socket_for_domain(domain, port)
 
-                proxy_pass http://unix:{socket_path};
-            }}
-            """
+        return jsonify({
+            "message": f"SSL uploaded and socket started for {domain}",
+            "port": port
+        })
 
-        os.makedirs(conf_dir, exist_ok=True)
-        with open(conf_path, "w") as f:
-            f.write(nginx_conf.strip())
-
-        # 3. Optional: Reload NGINX
-        # reload_status = os.system("nginx -t && systemctl reload nginx")
-
-        # if reload_status != 0:
-        #     return jsonify({"error": "NGINX config failed test or reload"}), 500
-
-        return jsonify({"message": f"SSL and config added for {domain}"}), 200
-
-    except PermissionError:
-        return jsonify({"error": "Permission denied writing to system folders"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
