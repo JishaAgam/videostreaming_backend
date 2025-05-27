@@ -90,7 +90,7 @@ def stream_video(filename):
     return Response(generate(), mimetype="video/mp4")
 
 # @video_blueprint.route('/position', methods=['POST'])
-# def save_position():
+# def save_position(): 
 #     try:
 #         tenant = getattr(request, 'tenant', 'main')
 #         data = request.get_json()
@@ -289,7 +289,7 @@ NEXT_PORT_FILE = "/etc/ssl/next_port.txt"
 def get_next_port():
     if not os.path.exists(NEXT_PORT_FILE):
         with open(NEXT_PORT_FILE, 'w') as f:
-            f.write("3002")
+            f.write("300")
 
     with open(NEXT_PORT_FILE, 'r') as f:
         port = int(f.read().strip())
@@ -302,12 +302,12 @@ def get_next_port():
 @video_blueprint.route('/upload-ssl', methods=['POST'])
 def upload_ssl():
     try:
-        domain = request.form.get('domain')
+        domain = request.form.get('domain') 
         cert = request.files.get('cert')
         key = request.files.get('key')
 
-        # if not domain or not cert or not key:
-        #     return jsonify({"error": "Missing domain, cert, or key"}), 400
+        if not domain or not cert or not key:
+            return jsonify({"error": "Missing domain, cert, or key"}), 400
 
         domain_dir = os.path.join(UPLOAD_BASE, domain)
         os.makedirs(domain_dir, exist_ok=True)
